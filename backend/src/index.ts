@@ -18,17 +18,30 @@ dotenv.config();
 const app = express();
 const httpServer = createServer(app);
 
-const io = new Server(httpServer, {
-  cors: {
-    origin: "http://localhost:3000",
-    methods: ["GET", "POST"],
-  },
-});
+// const io = new Server(httpServer, {
+//   cors: {
+//     origin: "http://localhost:3000",
+//     methods: ["GET", "POST"],
+//   },
+// });
 
 app.use(cors());
 app.use(express.json());
 
 app.use("/auth", authRouter);
+
+const io = new Server(httpServer, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"],
+  },
+});
+
+app.use(
+  cors({
+    origin: "*",
+  }),
+);
 
 const LANGUAGE_CONFIG: Record<string, { ext: string; cmd: string }> = {
   javascript: { ext: "js", cmd: "node" },
@@ -36,81 +49,151 @@ const LANGUAGE_CONFIG: Record<string, { ext: string; cmd: string }> = {
   typescript: { ext: "ts", cmd: "npx ts-node" },
 };
 
+//app.post("/execute", async (req, res) => {
+// const { language, code } = req.body;
+//
+//  console.log("Execute request:", { language });
+//
+//  const config = LANGUAGE_CONFIG[language];
+//  if (!config) {
+//    res.status(400).json({
+//      run: {
+//        stdout: "",
+//
+//        stderr: `Language "${language}" is not supported yet.`,
+//        code: 1,
+//      },
+//    });
+//    return;
+//  }
+//
+//  const filename = `collab_${Date.now()}.${config.ext}`;
+//  const filepath = join(os.tmpdir(), filename);
+//
+//  try {
+//    // Block dangerous operations
+//    const BLOCKED_PATTERNS = [
+//      "rmdirSync",
+//      "unlinkSync",
+//      "rmSync", // file deletion
+//      "execSync",
+//      "spawnSync", // shell execution
+//      "process.exit", // killing server
+//      'require("child_process")', // subprocess
+//      "require('child_process')",
+//      "__dirname",
+//      "process.env", // server internals
+//    ];
+//
+//    const isDangerous = BLOCKED_PATTERNS.some((pattern) =>
+//      code.includes(pattern),
+//    );
+//
+//    if (isDangerous) {
+//      res.json({
+//        run: {
+//          stdout: "",
+//          stderr: "This operation is not allowed for security reasons.",
+//          code: 1,
+//        },
+//      });
+//      return;
+//    }
+//
+//    await writeFile(filepath, code, "utf8");
+//
+//    const { stdout, stderr } = await execAsync(`${config.cmd} "${filepath}"`, {
+//      timeout: 10000,
+//      maxBuffer: 1024 * 1024,
+//    });
+//
+//  /  res.json({
+//      run: { stdout, stderr, code: 0 },
+//    });
+//  } catch (error: any) {
+//    // Clean up temp file path from error messages so users don't see internal paths
+//    const cleanError = (error.stderr || error.message || "Execution failed")
+//      .replace(/C:\\.*?collab_\d+\.\w+/g, "main")
+//      .replace(/\/.*?collab_\d+\.\w+/g, "main");
+//
+//    res.json({
+//      run: {
+//        stdout: error.stdout || "",
+//        stderr: cleanError,
+//        code: 1,
+//      },
+//    });
+//  } finally {
+//    unlink(filepath).catch(() => {});
+//  }
+//});
+
 app.post("/execute", async (req, res) => {
   const { language, code } = req.body;
 
   console.log("Execute request:", { language });
 
-  const config = LANGUAGE_CONFIG[language];
-  if (!config) {
-    res.status(400).json({
+  if (language !== "javascript" && language !== "typescript") {
+    res.json({
       run: {
         stdout: "",
-        stderr: `Language "${language}" is not supported yet.`,
+        stderr: `${language} execution is not supported in production yet.`,
         code: 1,
       },
     });
     return;
   }
 
-  const filename = `collab_${Date.now()}.${config.ext}`;
-  const filepath = join(os.tmpdir(), filename);
+  const BLOCKED_PATTERNS = [
+    "rmdirSync",
+    "unlinkSync",
+    "rmSync",
+    "execSync",
+    "spawnSync",
+    "process.exit",
+    'require("child_process")',
+    "require('child_process')",
+    "process.env",
+  ];
 
-  try {
-    // Block dangerous operations
-    const BLOCKED_PATTERNS = [
-      "rmdirSync",
-      "unlinkSync",
-      "rmSync", // file deletion
-      "execSync",
-      "spawnSync", // shell execution
-      "process.exit", // killing server
-      'require("child_process")', // subprocess
-      "require('child_process')",
-      "__dirname",
-      "process.env", // server internals
-    ];
-
-    const isDangerous = BLOCKED_PATTERNS.some((pattern) =>
-      code.includes(pattern),
-    );
-
-    if (isDangerous) {
-      res.json({
-        run: {
-          stdout: "",
-          stderr: "This operation is not allowed for security reasons.",
-          code: 1,
-        },
-      });
-      return;
-    }
-
-    await writeFile(filepath, code, "utf8");
-
-    const { stdout, stderr } = await execAsync(`${config.cmd} "${filepath}"`, {
-      timeout: 10000,
-      maxBuffer: 1024 * 1024,
-    });
-
-    res.json({
-      run: { stdout, stderr, code: 0 },
-    });
-  } catch (error: any) {
-    // Clean up temp file path from error messages so users don't see internal paths
-    const cleanError = (error.stderr || error.message || "Execution failed")
-      .replace(/C:\\.*?collab_\d+\.\w+/g, "main")
-      .replace(/\/.*?collab_\d+\.\w+/g, "main");
-
+  const isDangerous = BLOCKED_PATTERNS.some((pattern) =>
+    code.includes(pattern),
+  );
+  if (isDangerous) {
     res.json({
       run: {
-        stdout: error.stdout || "",
-        stderr: cleanError,
+        stdout: "",
+        stderr: "This operation is not allowed for security reasons.",
         code: 1,
       },
     });
-  } finally {
-    unlink(filepath).catch(() => {});
+    return;
+  }
+
+  try {
+    const { execSync } = require("child_process");
+    const result = execSync(
+      `node -e "${code.replace(/"/g, '\\"').replace(/\n/g, "\\n")}"`,
+      {
+        timeout: 10000,
+        maxBuffer: 1024 * 1024,
+      },
+    );
+    res.json({
+      run: {
+        stdout: result.toString(),
+        stderr: "",
+        code: 0,
+      },
+    });
+  } catch (error: any) {
+    res.json({
+      run: {
+        stdout: "",
+        stderr: error.stderr?.toString() || error.message,
+        code: 1,
+      },
+    });
   }
 });
 
