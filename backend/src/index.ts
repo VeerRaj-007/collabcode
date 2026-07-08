@@ -133,17 +133,6 @@ app.post("/execute", async (req, res) => {
 
   console.log("Execute request:", { language });
 
-  if (language !== "javascript" && language !== "typescript") {
-    res.json({
-      run: {
-        stdout: "",
-        stderr: `${language} execution is not supported in production yet.`,
-        code: 1,
-      },
-    });
-    return;
-  }
-
   const BLOCKED_PATTERNS = [
     "rmdirSync",
     "unlinkSync",
@@ -170,30 +159,57 @@ app.post("/execute", async (req, res) => {
     return;
   }
 
-  try {
-    const { execSync } = require("child_process");
-    const result = execSync(
-      `node -e "${code.replace(/"/g, '\\"').replace(/\n/g, "\\n")}"`,
-      {
-        timeout: 10000,
-        maxBuffer: 1024 * 1024,
-      },
-    );
-    res.json({
-      run: {
-        stdout: result.toString(),
-        stderr: "",
-        code: 0,
-      },
-    });
-  } catch (error: any) {
+  const LANGUAGE_CONFIG: Record<string, { ext: string; cmd: string }> = {
+    javascript: { ext: "js", cmd: "node" },
+    typescript: { ext: "ts", cmd: "npx ts-node" },
+    python: { ext: "py", cmd: "python3" },
+  };
+
+  const config = LANGUAGE_CONFIG[language];
+  if (!config) {
     res.json({
       run: {
         stdout: "",
-        stderr: error.stderr?.toString() || error.message,
+        stderr: `Language "${language}" is not supported yet.`,
         code: 1,
       },
     });
+    return;
+  }
+
+  const { writeFile, unlink } = require("fs").promises;
+  const { join } = require("path");
+  const { promisify } = require("util");
+  const { exec } = require("child_process");
+  const os = require("os");
+  const execAsync = promisify(exec);
+
+  const filename = `collab_${Date.now()}_${Math.random().toString(36).substring(2, 6)}.${config.ext}`;
+  const filepath = join(os.tmpdir(), filename);
+
+  try {
+    await writeFile(filepath, code, "utf8");
+
+    const { stdout, stderr } = await execAsync(`${config.cmd} "${filepath}"`, {
+      timeout: 10000,
+      maxBuffer: 1024 * 1024,
+    });
+
+    res.json({ run: { stdout, stderr, code: 0 } });
+  } catch (error: any) {
+    const cleanError = (error.stderr || error.message || "Execution failed")
+      .replace(/\/tmp\/collab_[\w.]+/g, "main")
+      .replace(/C:\\.*?collab_[\w.]+/g, "main");
+
+    res.json({
+      run: {
+        stdout: error.stdout || "",
+        stderr: cleanError,
+        code: 1,
+      },
+    });
+  } finally {
+    unlink(filepath).catch(() => {});
   }
 });
 
