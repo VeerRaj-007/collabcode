@@ -27,12 +27,15 @@ export const LANGUAGES: Language[] = [
   { id: "python", label: "Python", pistonId: "python", version: "" },
 ];
 
+const BACKEND_URL =
+  process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
+
 export async function executeCode(
   language: Language,
   code: string,
 ): Promise<ExecutionResult> {
   // Now calls our backend instead of Piston directly
-  const response = await fetch("http://localhost:5000/execute", {
+  const response = await fetch(`${BACKEND_URL}/execute`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
