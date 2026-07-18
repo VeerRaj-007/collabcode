@@ -8,13 +8,13 @@ A real-time collaborative code editor built for pair programming and technical i
 
 ## Features
 
-- **Real-time sync** — Multiple users edit the same file simultaneously. Changes appear instantly across all connected tabs using CRDTs (Conflict-free Replicated Data Types) via Yjs.
-- **Live cursor presence** — See where every collaborator's cursor is in real time, with colored labels showing their username.
-- **Code execution** — Run JavaScript, TypeScript, and Python directly in the browser. Output is broadcast to everyone in the room simultaneously.
-- **Room-based sessions** — Create a room and share the URL. Anyone with the link can join and collaborate instantly.
-- **Persistent state** — New users joining an existing room immediately see the current code and last output — no manual sync needed.
-- **Authentication** — Register and log in with email and password. JWT-based sessions persist across browser reloads.
-- **Language switching** — Switch between JavaScript, TypeScript, and Python mid-session.
+- **Real-time sync** : Multiple users edit the same file simultaneously. Changes appear instantly across all connected tabs using CRDTs (Conflict-free Replicated Data Types) via Yjs.
+- **Live cursor presence** : See where every collaborator's cursor is in real time, with colored labels showing their username.
+- **Code execution** : Run JavaScript, TypeScript, and Python directly in the browser. Output is broadcast to everyone in the room simultaneously.
+- **Room-based sessions** : Create a room and share the URL. Anyone with the link can join and collaborate instantly.
+- **Persistent state** : New users joining an existing room immediately see the current code and last output — no manual sync needed.
+- **Authentication** : Register and log in with email and password. JWT-based sessions persist across browser reloads.
+- **Language switching** : Switch between JavaScript, TypeScript, and Python mid-session.
 
 ---
 
