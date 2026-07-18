@@ -1,6 +1,6 @@
 # CollabCode
 
-A real-time collaborative code editor built for pair programming and technical interviews. Multiple users can write, edit, and execute code simultaneously in the same room — with live cursor presence, conflict-free sync, and shared output.
+A real-time collaborative code editor built for pair programming and technical interviews. Multiple users can write, edit, and execute code simultaneously in the same room with live cursor presence, conflict-free sync, and shared output.
 
 **Live Demo:** https://collabcode-livid.vercel.app
 
